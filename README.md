@@ -1,4 +1,3 @@
-# car_rental_system
 # 🚗 SRV FleetOS - Enterprise Car Rental & Fleet Management System
 
 A robust full-stack web application for automated vehicle rental operations, fleet inventory control, driver KYC verification, and dynamic billing. Built using high-performance Core Java HTTP microservices, Vanilla JavaScript, Tailwind CSS, and MySQL.
@@ -54,3 +53,50 @@ The system operates on three primary relational tables within the `car_rental_db
 
 ### 2. Database Setup
 Log into your MySQL instance and initialize the schema:
+
+```sql
+CREATE DATABASE IF NOT EXISTS car_rental_db;
+USE car_rental_db;
+
+CREATE TABLE IF NOT EXISTS customers (
+    customer_id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    role VARCHAR(20) DEFAULT 'CUSTOMER'
+);
+
+CREATE TABLE IF NOT EXISTS cars (
+    car_id VARCHAR(20) PRIMARY KEY,
+    model VARCHAR(100) NOT NULL,
+    price_per_day DECIMAL(10,2) NOT NULL,
+    is_available BOOLEAN DEFAULT TRUE,
+    image TEXT
+);
+
+CREATE TABLE IF NOT EXISTS rentals (
+    rental_id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_id VARCHAR(50),
+    car_id VARCHAR(20),
+    days INT NOT NULL,
+    total_cost DECIMAL(10,2) NOT NULL,
+    active BOOLEAN DEFAULT FALSE,
+    start_date DATE,
+    end_date DATE,
+    age INT,
+    license_no VARCHAR(50),
+    delivery_type VARCHAR(20) DEFAULT 'SELF_PICKUP',
+    delivery_address TEXT,
+    status VARCHAR(30) DEFAULT 'PENDING_APPROVAL',
+    payment_id VARCHAR(50),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (customer_id) REFERENCES customers(customer_id) ON DELETE SET NULL,
+    FOREIGN KEY (car_id) REFERENCES cars(car_id) ON DELETE SET NULL
+);
+
+
+# Compile the Java Server
+javac -cp ".;mysql-connector-j-8.4.0.jar" FullAppServer.java
+
+# Start the application
+java -cp ".;mysql-connector-j-8.4.0.jar" FullAppServer
