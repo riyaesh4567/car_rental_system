@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SRV FleetOS | Complete Full Stack Portal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50: '#eef6fc', 100: '#d7eaf8', 500: '#0e5393', 600: '#0a4277', 800: '#052340', 900: '#031628' }
+          },
+          fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-100 text-slate-800 flex h-screen overflow-hidden antialiased">
+
+  <!-- AUTH SCREEN OVERLAY (Shown if not logged in) -->
+  <div id="auth-screen" class="fixed inset-0 bg-brand-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl border border-slate-100 space-y-6">
+      <div class="text-center space-y-1">
+        <h2 class="text-2xl font-black text-brand-900 tracking-tight">SRV FleetOS</h2>
+        <p class="text-xs text-slate-400 font-semibold" id="auth-subtitle">Sign in to access your portal</p>
+      </div>
+
+      <!-- Quick Demo Credentials Box -->
+      <div class="bg-brand-50 p-3 rounded-xl border border-brand-100 text-[11px] space-y-1">
+        <div class="font-bold text-brand-900">College Demo Credentials:</div>
+        <div class="flex justify-between text-slate-600">
+          <span>Admin: <b>admin@srvtech.com</b> / <b>admin123</b></span>
+        </div>
+        <div class="flex justify-between text-slate-600">
+          <span>Customer: <b>ritesh@srvtech.com</b> / <b>user123</b></span>
+        </div>
+      </div>
+
+      <div id="auth-error" class="hidden p-3 bg-rose-50 text-rose-600 text-xs font-bold rounded-xl border border-rose-200"></div>
+
+      <!-- Form Inputs -->
+      <div class="space-y-3">
+        <div id="field-name" class="hidden">
+          <label class="block text-[11px] font-bold text-slate-500 mb-1">Full Name</label>
+          <input type="text" id="auth-name" placeholder="John Doe" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-500">
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-slate-500 mb-1">Email Address</label>
+          <input type="email" id="auth-email" value="admin@srvtech.com" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-500">
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-slate-500 mb-1">Password</label>
+          <input type="password" id="auth-password" value="admin123" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-500">
+        </div>
+      </div>
+
+      <button onclick="handleAuthSubmit()" id="auth-btn" class="w-full py-3 bg-brand-500 hover:bg-brand-600 text-white rounded-xl font-bold text-xs shadow-lg transition">Sign In</button>
+
+      <div class="text-center text-xs">
+        <button onclick="toggleAuthMode()" id="auth-toggle-btn" class="text-brand-500 font-bold hover:underline">New Customer? Create an Account</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN APP (Visible once authenticated) -->
+  <aside class="w-72 bg-brand-900 text-white flex flex-col justify-between shrink-0 shadow-2xl border-r border-brand-800 z-30">
+    <div>
+      <div class="h-20 flex items-center px-6 gap-3.5 border-b border-brand-800 bg-brand-950/50">
+        <div class="w-11 h-11 rounded-2xl bg-brand-500 text-white flex items-center justify-center font-black shadow-lg">
+          <i data-lucide="shield-check" class="w-6 h-6 stroke-[2.5]"></i>
+        </div>
+        <div>
+          <h1 class="text-base font-black tracking-wider uppercase text-white">SRV FleetOS</h1>
+          <p class="text-[10px] text-brand-100 font-semibold mt-0.5" id="sidebar-role-badge">ROLE: -</p>
+        </div>
+      </div>
+
+      <nav class="p-4 space-y-1.5 text-xs font-bold">
+        <button onclick="switchTab('available-cars')" id="nav-fleet" class="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-brand-500 text-white shadow-lg transition">
+          <div class="flex items-center gap-3">
+            <i data-lucide="car" class="w-4 h-4"></i>
+            <span>Fleet Inventory</span>
+          </div>
+          <span class="px-2 py-0.5 rounded-full bg-white/20 text-[10px] font-black" id="sidebar-avail-pill">0</span>
+        </button>
+
+        <button onclick="switchTab('my-rentals')" id="nav-rentals" class="w-full flex items-center justify-between px-4 py-3 rounded-xl text-slate-300 hover:text-white hover:bg-brand-800/60 transition">
+          <div class="flex items-center gap-3">
+            <i data-lucide="receipt" class="w-4 h-4"></i>
+            <span id="rental-nav-text">My Bookings</span>
+          </div>
+          <span class="px-2 py-0.5 rounded-full bg-brand-800 text-slate-300 text-[10px] font-bold" id="sidebar-rent-pill">0</span>
+        </button>
+
+        <!-- Reports & Feedback Nav Item (Module 7) -->
+        <button onclick="switchTab('reports-feedback')" id="nav-reports" class="w-full flex items-center justify-between px-4 py-3 rounded-xl text-slate-300 hover:text-white hover:bg-brand-800/60 transition">
+          <div class="flex items-center gap-3">
+            <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+            <span>Reports & Feedback</span>
+          </div>
+          <span class="px-2 py-0.5 rounded-full bg-brand-800 text-slate-300 text-[10px] font-bold" id="sidebar-feedback-pill">0</span>
+        </button>
+
+        <!-- Admin Only Button -->
+        <div id="admin-actions-section" class="pt-4 hidden space-y-2">
+          <div class="px-3 text-[10px] uppercase font-black tracking-widest text-slate-400">Admin Control</div>
+          <button onclick="openAddCarModal()" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-emerald-300 hover:text-white hover:bg-brand-800/60 transition">
+            <i data-lucide="plus-circle" class="w-4 h-4 text-emerald-400"></i>
+            <span>Add Vehicle to Fleet</span>
+          </button>
+        </div>
+      </nav>
+    </div>
+
+    <!-- Active User & Logout -->
+    <div class="p-4 border-t border-brand-800 bg-brand-950 flex items-center justify-between">
+      <div class="overflow-hidden">
+        <p class="text-xs font-bold text-white truncate" id="user-display-name">-</p>
+        <p class="text-[10px] text-brand-100/70 font-mono truncate" id="user-display-id">-</p>
+      </div>
+      <button onclick="logout()" class="p-2 rounded-xl bg-brand-800 hover:bg-rose-600 text-slate-300 hover:text-white transition" title="Logout">
+        <i data-lucide="log-out" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </aside>
+
+  <!-- VIEWPORT -->
+  <div class="flex-1 flex flex-col h-screen overflow-hidden">
+    <header class="h-20 bg-white border-b border-slate-200 px-8 flex items-center justify-between shadow-sm shrink-0">
+      <div>
+        <h2 class="text-xl font-black text-brand-500 tracking-tight" id="header-title">Command Center</h2>
+        <p class="text-xs text-slate-400 font-semibold" id="header-subtitle">Realtime DB Synchronized</p>
+      </div>
+      <button onclick="refreshData()" class="px-4 py-2.5 rounded-xl bg-brand-50 text-brand-500 border border-brand-200 hover:bg-brand-500 hover:text-white transition text-xs font-bold flex items-center gap-2">
+        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+        <span>Refresh</span>
+      </button>
+    </header>
+
+    <main class="flex-1 overflow-y-auto p-8 space-y-6 bg-slate-50">
+      <div id="alert-banner" class="hidden p-4 rounded-2xl text-xs font-bold flex items-center justify-between border">
+        <span id="alert-msg"></span>
+        <button onclick="dismissAlert()"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+
+      <!-- VIEW 1: FLEET -->
+      <section id="view-available-cars" class="space-y-6">
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-black text-slate-900">Vehicles</h3>
+          <input type="text" id="car-search" oninput="renderCars()" placeholder="Search vehicle..." class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-500 w-64">
+        </div>
+        <div id="cars-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
+      </section>
+
+      <!-- VIEW 2: RENTALS -->
+      <section id="view-my-rentals" class="space-y-6 hidden">
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-black text-slate-900" id="rentals-header-title">Bookings</h3>
+          <!-- CSV Export Button (Module 7) -->
+          <button onclick="exportBookingsCSV()" class="px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-100 rounded-xl text-xs font-bold flex items-center gap-2 text-slate-700 shadow-sm">
+            <i data-lucide="download" class="w-4 h-4 text-brand-500"></i>
+            <span>Export CSV</span>
+          </button>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 text-slate-400 font-bold uppercase border-b">
+              <tr>
+                <th class="px-6 py-4">Customer</th>
+                <th class="px-6 py-4">Car Model</th>
+                <th class="px-6 py-4">Days</th>
+                <th class="px-6 py-4">Total</th>
+                <th class="px-6 py-4">Status</th>
+                <th class="px-6 py-4 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody id="rentals-table-body" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- VIEW 3: REPORTS & FEEDBACK (Module 7) -->
+      <section id="view-reports-feedback" class="space-y-6 hidden">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-lg font-black text-slate-900">Analytics Reports & Feedback</h3>
+            <p class="text-xs text-slate-400 font-semibold">Summary of fleet earnings, active rentals, and customer reviews</p>
+          </div>
+          <button onclick="openFeedbackModal()" class="px-4 py-2.5 bg-brand-500 hover:bg-brand-600 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-md">
+            <i data-lucide="message-square-plus" class="w-4 h-4"></i>
+            <span>Submit Feedback</span>
+          </button>
+        </div>
+
+        <!-- Metric Stat Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+              <p class="text-xs font-bold text-slate-400">Total Bookings</p>
+              <h4 class="text-2xl font-black text-slate-900 mt-1" id="rep-total-bookings">0</h4>
+            </div>
+            <div class="p-3 bg-blue-50 text-brand-500 rounded-xl"><i data-lucide="shopping-bag" class="w-6 h-6"></i></div>
+          </div>
+          <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+              <p class="text-xs font-bold text-slate-400">Total Fleet Revenue</p>
+              <h4 class="text-2xl font-black text-emerald-600 mt-1" id="rep-total-rev">₹0</h4>
+            </div>
+            <div class="p-3 bg-emerald-50 text-emerald-600 rounded-xl"><i data-lucide="indian-rupee" class="w-6 h-6"></i></div>
+          </div>
+          <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+              <p class="text-xs font-bold text-slate-400">Cars Currently on Road</p>
+              <h4 class="text-2xl font-black text-amber-500 mt-1" id="rep-active-cars">0</h4>
+            </div>
+            <div class="p-3 bg-amber-50 text-amber-600 rounded-xl"><i data-lucide="truck" class="w-6 h-6"></i></div>
+          </div>
+        </div>
+
+        <!-- Customer Feedback Showcase -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+          <h4 class="text-sm font-extrabold text-slate-900">Recent Customer Reviews & Feedback</h4>
+          <div id="feedback-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- BOOKING MODAL -->
+<!-- BOOKING & KYC MODAL -->
+<div id="rent-modal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+  <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border space-y-4 max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between pb-2 border-b">
+      <h3 class="text-base font-extrabold text-slate-900">Vehicle Booking & Verification</h3>
+      <button onclick="closeRentModal()"><i data-lucide="x" class="w-5 h-5 text-slate-400"></i></button>
+    </div>
+    
+    <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border">
+      <div>
+        <p class="font-extrabold text-slate-900 text-sm" id="modal-model">-</p>
+        <p class="text-xs font-black text-brand-500" id="modal-price">₹0 / day</p>
+      </div>
+      <div class="text-right">
+        <span class="text-[10px] text-slate-400 font-bold uppercase">Estimated Bill</span>
+        <h4 class="text-lg font-black text-brand-600" id="modal-total">₹0</h4>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="block text-[11px] font-bold text-slate-500 mb-1">Pickup Date</label>
+        <input type="date" id="modal-start-date" onchange="calculateModalTotal()" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+      </div>
+      <div>
+        <label class="block text-[11px] font-bold text-slate-500 mb-1">Return Date</label>
+        <input type="date" id="modal-end-date" onchange="calculateModalTotal()" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="block text-[11px] font-bold text-slate-500 mb-1">Driver's Age (18+)</label>
+        <input type="number" id="modal-cust-age" min="18" max="90" placeholder="e.g. 24" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+      </div>
+      <div>
+        <label class="block text-[11px] font-bold text-slate-500 mb-1">Driving License Number</label>
+        <input type="text" id="modal-license" placeholder="MH-04-20230001234" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold uppercase">
+      </div>
+    </div>
+
+    <div class="space-y-1">
+      <label class="block text-[11px] font-bold text-slate-500">Vehicle Handover Preference</label>
+      <select id="modal-delivery-type" onchange="toggleDeliveryAddress()" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-bold">
+        <option value="SELF_PICKUP">Self Pickup (Collect from Hub)</option>
+        <option value="DOORSTEP">Doorstep Delivery (Home / Office)</option>
+      </select>
+    </div>
+
+    <div id="address-container" class="hidden">
+      <label class="block text-[11px] font-bold text-slate-500 mb-1">Delivery Address & Landmark</label>
+      <textarea id="modal-address" rows="2" placeholder="Full address in Mumbai / Vasai-Virar..." class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold"></textarea>
+    </div>
+
+    <div class="p-3 bg-amber-50 rounded-xl border border-amber-200 text-[11px] text-amber-800">
+      <b>Verification Flow:</b> Admin approval required.after payment your booking will be confirmed.
+    </div>
+
+    <div class="flex justify-end gap-2 pt-2 border-t">
+      <button onclick="closeRentModal()" class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600">Cancel</button>
+      <button onclick="submitRentalRequest()" class="px-5 py-2 rounded-xl text-xs font-bold bg-brand-500 text-white shadow-md">Submit Request</button>
+    </div>
+  </div>
+</div>
+
+<!-- DUMMY PAYMENT MODAL -->
+<div id="pay-modal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+  <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border space-y-4">
+    <div class="flex items-center justify-between border-b pb-2">
+      <h3 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
+        <i data-lucide="credit-card" class="w-5 h-5 text-brand-500"></i> Checkout
+      </h3>
+      <button onclick="closePayModal()"><i data-lucide="x" class="w-4 h-4 text-slate-400"></i></button>
+    </div>
+    <div>
+      <p class="text-xs text-slate-400 font-bold uppercase">Rental Total</p>
+      <h4 class="text-2xl font-black text-brand-600" id="pay-amount-display">₹0</h4>
+    </div>
+    <div class="space-y-2">
+      <label class="block text-xs font-bold text-slate-500">Payment Mode</label>
+      <select id="pay-mode" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+        <option value="UPI">Instant UPI (GPay / PhonePe / Paytm)</option>
+        <option value="CARD">Credit / Debit Card</option>
+        <option value="NETBANKING">Net Banking</option>
+      </select>
+    </div>
+    <div class="p-3 bg-emerald-50 text-emerald-800 text-[11px] rounded-xl border border-emerald-200">
+      Demo Payment Gateway. Kono real taka cut hobe na.
+    </div>
+    <div class="flex justify-end gap-2 pt-2 border-t">
+      <button onclick="closePayModal()" class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600">Cancel</button>
+      <button onclick="executePayment()" id="pay-confirm-btn" class="px-5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md">Pay & Confirm</button>
+    </div>
+  </div>
+</div>
+
+  <!-- ADD / EDIT CAR MODAL (Module 2: Add & Update) -->
+  <div id="add-car-modal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border space-y-4">
+      <div class="flex items-center justify-between pb-2 border-b">
+        <h3 class="text-base font-extrabold text-slate-900" id="car-modal-title">Add Vehicle</h3>
+        <button onclick="closeAddCarModal()"><i data-lucide="x" class="w-5 h-5 text-slate-400"></i></button>
+      </div>
+      <div class="space-y-2">
+        <input type="text" id="new-car-id" placeholder="Car ID (e.g. C105)" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+        <input type="text" id="new-car-model" placeholder="Model Name (e.g. Thar)" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+        <input type="number" id="new-car-price" placeholder="Rate / Day (₹)" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+        <input type="text" id="new-car-img" placeholder="Image URL (Unsplash or direct)" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold">
+      </div>
+      <div class="flex justify-end gap-2 pt-2 border-t">
+        <button onclick="closeAddCarModal()" class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600">Cancel</button>
+        <button onclick="submitCarForm()" class="px-5 py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white">Save Vehicle</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FEEDBACK MODAL (Module 7: Submit Feedback) -->
+  <div id="feedback-modal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border space-y-4">
+      <div class="flex items-center justify-between pb-2 border-b">
+        <h3 class="text-base font-extrabold text-slate-900">Service Feedback</h3>
+        <button onclick="closeFeedbackModal()"><i data-lucide="x" class="w-5 h-5 text-slate-400"></i></button>
+      </div>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Rating</label>
+          <select id="feedback-rating" class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-bold">
+            <option value="5">⭐⭐⭐⭐⭐ (Excellent)</option>
+            <option value="4">⭐⭐⭐⭐ (Very Good)</option>
+            <option value="3">⭐⭐⭐ (Average)</option>
+            <option value="2">⭐⭐ (Needs Improvement)</option>
+            <option value="1">⭐ (Poor)</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Your Comments</label>
+          <textarea id="feedback-comment" rows="3" placeholder="Tell us about your rental experience..." class="w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs font-semibold focus:outline-none focus:border-brand-500"></textarea>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2 border-t">
+        <button onclick="closeFeedbackModal()" class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600">Cancel</button>
+        <button onclick="saveFeedback()" class="px-5 py-2 rounded-xl text-xs font-bold bg-brand-500 text-white">Submit Feedback</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentUser = null;
+    let isRegisterMode = false;
+    let cars = [];
+    let rentals = [];
+    let selectedCar = null;
+    let isEditMode = false;
+
+    // Customer Feedback Data Store
+    let feedbacks = [
+  { name: "Rahul Sharma", rating: 5, comment: "Swift was in great condition, smooth checkout!", date: "2026-04-10" },
+  { name: "Priya Patel", rating: 4, comment: "Comfortable Innova for family trip. Quick return process.", date: "2026-04-12" },
+  { name: "Aman Verma", rating: 5, comment: "Creta automatic was a breeze to drive in Mumbai traffic. Clean cabin.", date: "2026-04-14" },
+  { name: "Sneha Kulkarni", rating: 4, comment: "Booking flow was very quick. Instant confirmation!", date: "2026-04-15" },
+  { name: "Vikram Malhotra", rating: 5, comment: "Rented the BMW for an executive client pickup. Premium service!", date: "2026-04-16" }
+];
+
+    function toggleAuthMode() {
+      isRegisterMode = !isRegisterMode;
+      document.getElementById('field-name').classList.toggle('hidden', !isRegisterMode);
+      document.getElementById('auth-btn').innerText = isRegisterMode ? 'Register & Sign In' : 'Sign In';
+      document.getElementById('auth-subtitle').innerText = isRegisterMode ? 'Create a customer profile' : 'Sign in to access your portal';
+      document.getElementById('auth-toggle-btn').innerText = isRegisterMode ? 'Already have an account? Sign In' : 'New Customer? Create an Account';
+    }
+
+    async function handleAuthSubmit() {
+      const email = document.getElementById('auth-email').value.trim();
+      const password = document.getElementById('auth-password').value.trim();
+      const name = document.getElementById('auth-name').value.trim();
+      const errBox = document.getElementById('auth-error');
+      errBox.classList.add('hidden');
+
+      const endpoint = isRegisterMode ? '/api/auth/register' : '/api/auth/login';
+      const payload = isRegisterMode ? { name, email, password } : { email, password };
+
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          currentUser = data;
+          document.getElementById('auth-screen').classList.add('hidden');
+          setupUserDashboard();
+          await refreshData();
+        } else {
+          errBox.innerText = data.error || 'Authentication failed';
+          errBox.classList.remove('hidden');
+        }
+      } catch (err) {
+        errBox.innerText = 'Cannot reach backend server. Make sure FullAppServer is running.';
+        errBox.classList.remove('hidden');
+      }
+    }
+
+    function setupUserDashboard() {
+      document.getElementById('user-display-name').innerText = currentUser.name;
+      document.getElementById('user-display-id').innerText = `${currentUser.role}: ${currentUser.userId}`;
+      document.getElementById('sidebar-role-badge').innerText = `ROLE: ${currentUser.role}`;
+
+      const isAdmin = currentUser.role === 'ADMIN';
+      document.getElementById('admin-actions-section').classList.toggle('hidden', !isAdmin);
+      document.getElementById('rental-nav-text').innerText = isAdmin ? 'All Fleet Bookings' : 'My Bookings';
+      document.getElementById('rentals-header-title').innerText = isAdmin ? 'All Customer Bookings' : 'My Booking History';
+    }
+
+    function logout() {
+      currentUser = null;
+      document.getElementById('auth-screen').classList.remove('hidden');
+    }
+
+    async function refreshData() {
+      if (!currentUser) return;
+      await fetchCars();
+      await fetchRentals();
+      updateMetrics();
+      renderReportsAndFeedback();
+      lucide.createIcons();
+    }
+
+    async function fetchCars() {
+      const res = await fetch('/api/cars');
+      if (res.ok) {
+        cars = await res.json();
+        renderCars();
+      }
+    }
+
+    async function fetchRentals() {
+      const url = currentUser.role === 'ADMIN' ? '/api/rentals' : `/api/rentals?customerId=${currentUser.userId}`;
+      const res = await fetch(url);
+      if (res.ok) {
+        rentals = await res.json();
+        renderRentals();
+      }
+    }
+
+    function renderCars() {
+      const grid = document.getElementById('cars-grid');
+      const query = (document.getElementById('car-search')?.value || '').toLowerCase();
+      grid.innerHTML = '';
+
+      const filtered = cars.filter(c => c.model.toLowerCase().includes(query) || c.carId.toLowerCase().includes(query));
+      filtered.forEach(car => {
+        const isAdmin = currentUser && currentUser.role === 'ADMIN';
+        const card = document.createElement('div');
+        card.className = "bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm flex flex-col justify-between";
+        card.innerHTML = `
+          <div>
+            <div class="relative h-40 w-full bg-slate-100">
+              <img src="${car.image || 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=600'}" alt="${car.model}" class="w-full h-full object-cover">
+              <div class="absolute top-2 right-2 flex gap-1">
+                <span class="px-2 py-0.5 text-[10px] font-bold rounded ${car.isAvailable ? 'bg-emerald-500 text-white' : 'bg-slate-500 text-white'}">
+                  ${car.isAvailable ? 'Available' : 'Rented'}
+                </span>
+                ${isAdmin ? `
+                  <button onclick="openEditCarModal('${car.carId}')" class="p-1 bg-amber-500 hover:bg-amber-600 text-white rounded" title="Edit Vehicle Details">
+                    <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                  </button>
+                  <button onclick="deleteCar('${car.carId}')" class="p-1 bg-rose-600 hover:bg-rose-700 text-white rounded" title="Delete Car">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                  </button>
+                ` : ''}
+              </div>
+              <div class="absolute bottom-2 left-2 bg-slate-900/80 px-2 py-0.5 rounded text-[10px] font-mono text-white">${car.carId}</div>
+            </div>
+            <div class="p-4">
+              <h4 class="font-extrabold text-slate-900 text-sm">${car.model}</h4>
+              <p class="text-base font-black text-brand-500 mt-1">₹${car.pricePerDay} <span class="text-xs text-slate-400 font-normal">/ day</span></p>
+            </div>
+          </div>
+          <div class="p-4 pt-0">
+            <button onclick="openRentModal('${car.carId}')" ${!car.isAvailable ? 'disabled' : ''} class="w-full py-2 rounded-xl font-bold text-xs ${car.isAvailable ? 'bg-brand-500 hover:bg-brand-600 text-white' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}">
+              ${car.isAvailable ? 'Rent Vehicle' : 'Rented'}
+            </button>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+      lucide.createIcons();
+    }
+
+    function toggleDeliveryAddress() {
+      const type = document.getElementById('modal-delivery-type').value;
+      document.getElementById('address-container').classList.toggle('hidden', type !== 'DOORSTEP');
+    }
+
+    function renderRentals() {
+      const tbody = document.getElementById('rentals-table-body');
+      tbody.innerHTML = '';
+      if (rentals.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-400">No records found.</td></tr>`;
+        return;
+      }
+
+      rentals.forEach(r => {
+        const isAdmin = currentUser && currentUser.role === 'ADMIN';
+        const isMine = currentUser && r.customerId === currentUser.userId;
+
+        let statusBadge = '';
+        if (r.status === 'PENDING_APPROVAL') {
+          statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">Pending Review</span>';
+        } else if (r.status === 'APPROVED') {
+          statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-300">Approved (Unpaid)</span>';
+        } else if (r.status === 'PAID_CONFIRMED') {
+          statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">Active / On Trip</span>';
+        } else if (r.status === 'REJECTED') {
+          statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">Rejected</span>';
+        } else {
+          statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">Returned</span>';
+        }
+
+        let actionButtons = '';
+        if (isAdmin && r.status === 'PENDING_APPROVAL') {
+          actionButtons = `
+            <div class="flex gap-1 justify-end">
+              <button onclick="adminAction('${r.rentalId}', 'APPROVE')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold">Accept</button>
+              <button onclick="adminAction('${r.rentalId}', 'REJECT')" class="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold">Reject</button>
+            </div>
+          `;
+        } else if (!isAdmin && isMine && r.status === 'APPROVED') {
+          actionButtons = `
+            <button onclick="openPayModal('${r.rentalId}', '${r.totalCost}', '${r.model}', '${r.deliveryType}', '${r.deliveryAddress}')" class="px-3 py-1 bg-brand-500 hover:bg-brand-600 text-white rounded-lg text-xs font-bold shadow animate-pulse">
+              Pay Now (₹${r.totalCost})
+            </button>
+          `;
+        } else if (r.status === 'PAID_CONFIRMED' && (isAdmin || isMine)) {
+          actionButtons = `
+            <div class="flex gap-1 justify-end">
+              <button onclick="returnCar('${r.carId}')" class="px-2.5 py-1 bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 rounded-lg text-xs font-bold">Return</button>
+              <button onclick="printInvoice('${r.rentalId}', '${r.customerName}', '${r.model}', '${r.days}', '${r.totalCost}')" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 border rounded-lg text-xs font-bold">Slip</button>
+            </div>
+          `;
+        } else if (r.status === 'RETURNED') {
+          actionButtons = `
+            <button onclick="printInvoice('${r.rentalId}', '${r.customerName}', '${r.model}', '${r.days}', '${r.totalCost}')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 border rounded-lg text-xs font-bold">Invoice</button>
+          `;
+        } else {
+          actionButtons = '<span class="text-slate-400 text-xs">-</span>';
+        }
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50";
+        tr.innerHTML = `
+          <td class="px-6 py-4">
+            <div class="font-bold text-slate-900">${r.customerName}</div>
+            <div class="text-[10px] text-slate-400 font-mono">Lic: ${r.licenseNo || 'N/A'} | Age: ${r.age || 'N/A'}</div>
+            <div class="text-[10px] text-brand-600 font-semibold">${r.deliveryType === 'DOORSTEP' ? '🏠 Doorstep: ' + r.deliveryAddress : '🏢 Self Pickup'}</div>
+          </td>
+          <td class="px-6 py-4 font-bold text-slate-800">${r.model}</td>
+          <td class="px-6 py-4 text-slate-600">${r.days} Days</td>
+          <td class="px-6 py-4 font-black text-brand-500">₹${r.totalCost}</td>
+          <td class="px-6 py-4">${statusBadge}</td>
+          <td class="px-6 py-4 text-right">${actionButtons}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+      lucide.createIcons();
+    }
+
+    let calculatedDays = 1;
+
+function openRentModal(carId) {
+  selectedCar = cars.find(c => c.carId === carId);
+  if (!selectedCar || !selectedCar.isAvailable) return;
+  document.getElementById('modal-model').innerText = selectedCar.model;
+  document.getElementById('modal-price').innerText = `₹${selectedCar.pricePerDay} / day`;
+  
+  const today = new Date().toISOString().split('T')[0];
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+  
+  document.getElementById('modal-start-date').value = today;
+  document.getElementById('modal-end-date').value = tomorrow;
+  document.getElementById('modal-start-date').min = today;
+  document.getElementById('modal-end-date').min = today;
+  
+  calculateModalTotal();
+  document.getElementById('rent-modal').classList.remove('hidden');
+}
+
+function closeRentModal() { 
+  document.getElementById('rent-modal').classList.add('hidden'); 
+}
+
+function calculateModalTotal() {
+  const start = new Date(document.getElementById('modal-start-date').value);
+  const end = new Date(document.getElementById('modal-end-date').value);
+  
+  const diffTime = end - start;
+  calculatedDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  if (isNaN(calculatedDays) || calculatedDays <= 0) {
+    calculatedDays = 1;
+    document.getElementById('modal-end-date').value = document.getElementById('modal-start-date').value;
+  }
+  
+  document.getElementById('modal-total').innerText = `₹${calculatedDays * selectedCar.pricePerDay} (${calculatedDays} Days)`;
+}
+
+async function submitRentalRequest() {
+  const age = parseInt(document.getElementById('modal-cust-age').value);
+  const license = document.getElementById('modal-license').value.trim();
+  const deliveryType = document.getElementById('modal-delivery-type').value;
+  const address = document.getElementById('modal-address').value.trim();
+  const startDate = document.getElementById('modal-start-date').value;
+  const endDate = document.getElementById('modal-end-date').value;
+
+  if (!age || age < 18) {
+    alert("Driver must be at least 18 years old.");
+    return;
+  }
+  if (!license || license.length < 6) {
+    alert("Valid Driving License Number is mandatory.");
+    return;
+  }
+  if (deliveryType === 'DOORSTEP' && !address) {
+    alert("Please enter full address for doorstep delivery.");
+    return;
+  }
+
+  const res = await fetch('/api/rentals', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      carId: selectedCar.carId,
+      customerId: currentUser.userId,
+      days: calculatedDays,
+      startDate,
+      endDate,
+      age,
+      licenseNo: license,
+      deliveryType,
+      address: deliveryType === 'DOORSTEP' ? address : 'Self-Pickup Hub'
+    })
+  });
+
+  if (res.ok) {
+    closeRentModal();
+    showBanner("Booking request submitted! Waiting for Admin verification.", "success");
+    await refreshData();
+  } else {
+    const err = await res.json();
+    alert(err.error || "Submission failed");
+  }
+}
+
+async function adminAction(rentalId, action) {
+  const res = await fetch('/api/rentals/action', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ rentalId, action })
+  });
+  if (res.ok) {
+    showBanner(`Request has been ${action === 'APPROVE' ? 'Approved' : 'Rejected'}!`, "success");
+    await refreshData();
+  }
+}
+
+let activePaymentRental = null;
+function openPayModal(rentalId, total, model, deliveryType, address) {
+  activePaymentRental = { rentalId, total, model, deliveryType, address };
+  document.getElementById('pay-amount-display').innerText = `₹${total}`;
+  document.getElementById('pay-modal').classList.remove('hidden');
+}
+
+function closePayModal() { 
+  document.getElementById('pay-modal').classList.add('hidden'); 
+}
+
+async function executePayment() {
+  const payBtn = document.getElementById('pay-confirm-btn');
+  payBtn.disabled = true;
+  payBtn.innerText = "Processing...";
+
+  const paymentId = "PAY-" + Math.floor(100000 + Math.random() * 900000);
+
+  const res = await fetch('/api/rentals/pay', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      rentalId: activePaymentRental.rentalId,
+      paymentId: paymentId
+    })
+  });
+
+  payBtn.disabled = false;
+  payBtn.innerText = "Pay & Confirm";
+  closePayModal();
+
+  if (res.ok) {
+    showBanner(`Payment Successful (${paymentId})! Order Confirmed. Mail dispatched.`, "success");
+    await refreshData();
+  } else {
+    alert("Payment confirmation failed.");
+  }
+}
+
+function printInvoice(id, customer, model, days, cost) {
+  const printWindow = window.open('', '', 'width=650,height=650');
+  printWindow.document.write(`
+    <html>
+      <head>
+        <title>SRV FleetOS - Receipt #${id}</title>
+        <style>
+          body { font-family: sans-serif; padding: 30px; color: #1e293b; }
+          .header { border-bottom: 2px solid #0e5393; padding-bottom: 12px; margin-bottom: 20px; }
+          .title { font-size: 22px; font-weight: bold; color: #0e5393; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { text-align: left; padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
+          th { background: #f8fafc; font-weight: 600; }
+          .total { font-size: 18px; font-weight: bold; color: #0e5393; text-align: right; margin-top: 25px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="title">SRV FleetOS - Booking Invoice</div>
+          <p style="font-size: 12px; color: #64748b; margin: 4px 0 0;">Invoice ID: REC-${id} | Date: ${new Date().toLocaleDateString()}</p>
+        </div>
+        <p><strong>Customer Name:</strong> ${customer}</p>
+        <table>
+          <tr><th>Vehicle Model</th><th>Duration</th><th>Total Paid</th></tr>
+          <tr><td>${model}</td><td>${days} Days</td><td>₹${cost}</td></tr>
+        </table>
+        <div class="total">Total Paid: ₹${cost}</div>
+        <p style="font-size: 12px; text-align: center; margin-top: 50px; color: #94a3b8;">Thank you for renting with SRV FleetOS. Drive safe!</p>
+        <script>window.print();<\/script>
+      </body>
+    </html>
+  `);
+  printWindow.document.close();
+}
+    // ADD / EDIT CAR WORKFLOW (Module 2)
+    function openAddCarModal() {
+      isEditMode = false;
+      document.getElementById('car-modal-title').innerText = "Add Vehicle";
+      document.getElementById('new-car-id').disabled = false;
+      document.getElementById('new-car-id').value = '';
+      document.getElementById('new-car-model').value = '';
+      document.getElementById('new-car-price').value = '';
+      document.getElementById('new-car-img').value = '';
+      document.getElementById('add-car-modal').classList.remove('hidden');
+    }
+
+    function openEditCarModal(carId) {
+      const car = cars.find(c => c.carId === carId);
+      if (!car) return;
+      isEditMode = true;
+      document.getElementById('car-modal-title').innerText = `Update Vehicle (${car.carId})`;
+      document.getElementById('new-car-id').disabled = true;
+      document.getElementById('new-car-id').value = car.carId;
+      document.getElementById('new-car-model').value = car.model;
+      document.getElementById('new-car-price').value = car.pricePerDay;
+      document.getElementById('new-car-img').value = car.image || '';
+      document.getElementById('add-car-modal').classList.remove('hidden');
+    }
+
+    function closeAddCarModal() { document.getElementById('add-car-modal').classList.add('hidden'); }
+
+    async function submitCarForm() {
+      const carId = document.getElementById('new-car-id').value.trim();
+      const model = document.getElementById('new-car-model').value.trim();
+      const pricePerDay = document.getElementById('new-car-price').value.trim();
+      const image = document.getElementById('new-car-img').value.trim();
+
+      if (!carId || !model || !pricePerDay) {
+        alert("Please fill in Car ID, Model, and Price.");
+        return;
+      }
+
+      if (isEditMode) {
+        // Remove existing car before updating
+        await fetch('/api/cars/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ carId })
+        });
+      }
+
+      const res = await fetch('/api/cars/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ carId, model, pricePerDay, image })
+      });
+
+      if (res.ok) {
+        closeAddCarModal();
+        showBanner(isEditMode ? "Vehicle updated successfully!" : "Car added to inventory!", "success");
+        await refreshData();
+      }
+    }
+
+    async function deleteCar(carId) {
+      if (!confirm(`Delete vehicle ${carId}?`)) return;
+      const res = await fetch('/api/cars/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ carId })
+      });
+      if (res.ok) {
+        showBanner("Vehicle deleted!", "success");
+        await refreshData();
+      }
+    }
+
+    // REPORTS & FEEDBACK LOGIC (Module 7)
+    function renderReportsAndFeedback() {
+      const totalBookings = rentals.length;
+      const totalRev = rentals.reduce((sum, r) => sum + (parseFloat(r.totalCost) || 0), 0);
+      const activeFleet = rentals.filter(r => r.active).length;
+
+      const totalBookingsEl = document.getElementById('rep-total-bookings');
+      const totalRevEl = document.getElementById('rep-total-rev');
+      const activeFleetEl = document.getElementById('rep-active-cars');
+      
+      if (totalBookingsEl) totalBookingsEl.innerText = totalBookings;
+      if (totalRevEl) totalRevEl.innerText = `₹${totalRev.toLocaleString('en-IN')}`;
+      if (activeFleetEl) activeFleetEl.innerText = activeFleet;
+
+      const fbContainer = document.getElementById('feedback-list');
+      if (fbContainer) {
+        fbContainer.innerHTML = '';
+        feedbacks.forEach(f => {
+          const stars = '★'.repeat(f.rating) + '☆'.repeat(5 - f.rating);
+          const card = document.createElement('div');
+          card.className = "p-4 bg-slate-50 border rounded-2xl space-y-1";
+          card.innerHTML = `
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-xs text-slate-800">${f.name}</span>
+              <span class="text-amber-500 font-bold text-xs tracking-wider">${stars}</span>
+            </div>
+            <p class="text-xs text-slate-600 font-medium">"${f.comment}"</p>
+            <p class="text-[10px] text-slate-400 font-mono">${f.date}</p>
+          `;
+          fbContainer.appendChild(card);
+        });
+      }
+      const pill = document.getElementById('sidebar-feedback-pill');
+      if (pill) pill.innerText = feedbacks.length;
+    }
+
+    function exportBookingsCSV() {
+      if (rentals.length === 0) {
+        alert("No bookings available to export.");
+        return;
+      }
+      let csvContent = "data:text/csv;charset=utf-8,RentalID,CustomerID,CustomerName,CarID,Model,Days,TotalCost,Status\n";
+      rentals.forEach(r => {
+        csvContent += `${r.rentalId},${r.customerId},"${r.customerName}",${r.carId},"${r.model}",${r.days},${r.totalCost},${r.active ? 'Active' : 'Returned'}\n`;
+      });
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `SRV_FleetOS_Report_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    function openFeedbackModal() { document.getElementById('feedback-modal').classList.remove('hidden'); }
+    function closeFeedbackModal() { document.getElementById('feedback-modal').classList.add('hidden'); }
+
+    function saveFeedback() {
+      const rating = parseInt(document.getElementById('feedback-rating').value);
+      const comment = document.getElementById('feedback-comment').value.trim();
+      if (!comment) {
+        alert("Please write a short comment.");
+        return;
+      }
+      feedbacks.unshift({
+        name: currentUser ? currentUser.name : "Customer",
+        rating,
+        comment,
+        date: new Date().toISOString().slice(0, 10)
+      });
+      closeFeedbackModal();
+      document.getElementById('feedback-comment').value = '';
+      showBanner("Thank you! Feedback submitted.", "success");
+      renderReportsAndFeedback();
+    }
+
+    function switchTab(tab) {
+      document.getElementById('view-available-cars').classList.toggle('hidden', tab !== 'available-cars');
+      document.getElementById('view-my-rentals').classList.toggle('hidden', tab !== 'my-rentals');
+      document.getElementById('view-reports-feedback').classList.toggle('hidden', tab !== 'reports-feedback');
+
+      document.getElementById('nav-fleet').className = tab === 'available-cars' ? 'w-full flex items-center justify-between px-4 py-3 rounded-xl bg-brand-500 text-white shadow-lg transition' : 'w-full flex items-center justify-between px-4 py-3 rounded-xl text-slate-300 hover:text-white hover:bg-brand-800/60 transition';
+      document.getElementById('nav-rentals').className = tab === 'my-rentals' ? 'w-full flex items-center justify-between px-4 py-3 rounded-xl bg-brand-500 text-white shadow-lg transition' : 'w-full flex items-center justify-between px-4 py-3 rounded-xl text-slate-300 hover:text-white hover:bg-brand-800/60 transition';
+      document.getElementById('nav-reports').className = tab === 'reports-feedback' ? 'w-full flex items-center justify-between px-4 py-3 rounded-xl bg-brand-500 text-white shadow-lg transition' : 'w-full flex items-center justify-between px-4 py-3 rounded-xl text-slate-300 hover:text-white hover:bg-brand-800/60 transition';
+      lucide.createIcons();
+    }
+
+    function updateMetrics() {
+      const avail = cars.filter(c => c.isAvailable).length;
+      document.getElementById('sidebar-avail-pill').innerText = avail;
+      document.getElementById('sidebar-rent-pill').innerText = rentals.length;
+    }
+
+    function showBanner(msg, type) {
+      const b = document.getElementById('alert-banner');
+      document.getElementById('alert-msg').innerText = msg;
+      b.className = `p-4 rounded-2xl text-xs font-bold flex items-center justify-between border ${type === 'success' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`;
+      b.classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function dismissAlert() { document.getElementById('alert-banner').classList.add('hidden'); }
+    window.onload = () => lucide.createIcons();
+  </script>
+</body>
+</html>
